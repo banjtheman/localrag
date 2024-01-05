@@ -42,8 +42,8 @@ I have a dog
 
 ```python
 import localrag
-localrag.setup()  
-response = localrag.chat("./docs", "What type of pet do I have?")
+my_local_rag = localrag.init()
+response = my_local_rag.chat("./docs", "What type of pet do I have?")
 print(response.answer)
 print(response.source_documents)
 # Based on the context you provided, I can determine that you have a dog. Therefore, the type of pet you have is "dog."
