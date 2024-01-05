@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="localrag",
-    version="0.1.0",
+    version="0.1.1",
     packages=find_packages(),
     install_requires=[
         "unstructured",
@@ -10,6 +10,7 @@ setup(
         "langchain",
         "faiss-cpu",
         "transformers",
+        "sentence_transformers",
     ],
     # PyPI metadata
     author="Banjo Obayomi",
