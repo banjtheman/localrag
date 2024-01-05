@@ -1,3 +1,5 @@
+import os
+
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts.prompt import PromptTemplate
 from langchain.schema.messages import AIMessage, HumanMessage
@@ -7,25 +9,47 @@ from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
 
+from .chatresponse import ChatResponse
+
 
 class RagChat:
-    def __init__(self):
-        # Initialize with default or empty settings
-        self.llm_model = "llama2"
-        self.embedding_model = "BAAI/bge-small-en"
-        self.device = "mps"
-        self.index_location = "localrag_index"
+    def __init__(
+        self,
+        llm_model="llama2",
+        embedding_model="BAAI/bge-small-en",
+        device="mps",
+        index_location="localrag_index",
+    ):
+        """
+        Initialize a new RagChat instance with specified or default configurations.
+
+        Args:
+            llm_model (str): The name of the large language model to use. Defaults to 'llama2'.
+            embedding_model (str): The name of the embedding model to use. Defaults to 'BAAI/bge-small-en'.
+            device (str): The device to run the models on. Defaults to 'mps'.
+            index_location (str): The location of the pre-built index for document retrieval. Defaults to 'localrag_index'.
+        """
         self.chat_history = []
         self.embeddings = None
         self.chain = None
+        self.setup(llm_model, embedding_model, device, index_location)
 
     def setup(
         self,
-        llm_model: str = "llama2",
-        embedding_model: str = "BAAI/bge-small-en",
-        device: str = "mps",
-        index_location: str = "localrag_index",
+        llm_model: str,
+        embedding_model: str,
+        device: str,
+        index_location: str,
     ):
+        """
+        Setup the model and other configurations necessary for the RagChat system.
+
+        Args:
+            llm_model (str): The name of the large language model to use.
+            embedding_model (str): The name of the embedding model to use.
+            device (str): The device to run the models on.
+            index_location (str): The location of the pre-built index for document retrieval.
+        """
         # Setup the model and other configurations
         self.llm_model = llm_model
         self.embedding_model = embedding_model
@@ -35,6 +59,12 @@ class RagChat:
         self.setup_embeddings()
 
     def setup_embeddings(self):
+        """
+        Set up the embedding model based on the specified configuration.
+
+        This typically involves loading the model into the specified device and
+        preparing any other model-specific configurations.
+        """
         encode_kwargs = {"normalize_embeddings": True}
         self.embeddings = HuggingFaceBgeEmbeddings(
             model_name=self.embedding_model,
@@ -43,19 +73,6 @@ class RagChat:
         )
 
     def setup_llm(self):
-        # Set Context for response
-        TEMPLATE = """You are expert AI assistant . Your role is to help user's chat with thier doucments. Return your response in markdown, so you can bold and highlight important information for users. If the answer cannot be found within the context, write 'I could not find an answer from the documents.' 
-
-        Here is the conversation so far:
-        {chat_history}
-
-        Use the following context from the user's documents and the chat history to answer the user's query. Make sure to read all the context before providing an answer.\nContext:\n{context}\nQuestion: {question}
-        """
-
-        QA_PROMPT = PromptTemplate(
-            template=TEMPLATE, input_variables=["question", "context"]
-        )
-
         llm = Ollama(model=self.llm_model)
 
         vectorstore = FAISS.load_local(self.index_location, self.embeddings)
@@ -74,7 +91,7 @@ class RagChat:
         return result
 
     def chunk_docs_to_text(self, docs_loc: str):
-        loader = DirectoryLoader(docs_loc)
+        loader = DirectoryLoader(docs_loc, silent_errors=True)
         docs = loader.load()
 
         text_splitter = RecursiveCharacterTextSplitter(
@@ -90,16 +107,22 @@ class RagChat:
         docsearch.save_local(save_loc)
 
     def chat(self, docs_path: str, query: str):
-        # This is where you implement the chat functionality
-        # Integrate the previous methods to complete the chat operation
-        # E.g., chunk docs, embed text, and then get LLM response
+        """
+        Simulate a chat with the document at the given path using the specified query.
 
-        texts = self.chunk_docs_to_text(docs_path)
-        self.embed_text(texts, self.index_location)
+        Args:
+            docs_path (str): The path to the directory or file containing the documents to chat with.
+            query (str): The user's query or question to ask the document.
+
+        Returns:
+            ChatResponse: An object containing the response details, including the answer, question, and source documents.
+        """
+        if not os.path.exists(self.index_location):
+            texts = self.chunk_docs_to_text(docs_path)
+            self.embed_text(texts, self.index_location)
 
         if self.chain is None:
             self.setup_llm()
 
         response = self.get_llm_response(query)
-
-        return response
+        return ChatResponse(response)
