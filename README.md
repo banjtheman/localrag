@@ -42,8 +42,13 @@ I have a dog
 
 ```python
 import localrag
+# can set device to mps or cuda:0 e.g device="mps"
+# can set index location e.g index_location="my_index_loc"
 my_local_rag = localrag.init()
-response = my_local_rag.chat("./docs", "What type of pet do I have?")
+# Add docs
+my_local_rag.add_to_index("./docs")
+# Chat with docs
+response = my_local_rag.chat("What type of pet do I have?")
 print(response.answer)
 print(response.source_documents)
 # Based on the context you provided, I can determine that you have a dog. Therefore, the type of pet you have is "dog."

@@ -2,11 +2,11 @@ from setuptools import find_packages, setup
 
 setup(
     name="localrag",
-    version="0.1.2",
+    version="0.1.3",
     packages=find_packages(),
     install_requires=[
         "unstructured",
-        "unstructured[pdf]",
+        "unstructured[all-docs]",
         "langchain",
         "faiss-cpu",
         "transformers",
