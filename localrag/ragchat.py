@@ -1,4 +1,5 @@
 import os
+import pickle
 
 from langchain.chains import ConversationalRetrievalChain
 from langchain.schema.messages import AIMessage, HumanMessage
@@ -152,6 +153,47 @@ class RagChat:
         Clear chat history
         """
         self.chat_history = []
+
+    def save_chat_history(self, output_dir: str, chat_name: str):
+        """
+        Save chat history to a pickle file in the specified output directory.
+
+        Args:
+            output_dir (str): The directory where the chat history file will be saved.
+            chat_name (str): Name of the chat, used for naming the pickle file.
+        """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)  # Create the directory if it doesn't exist
+
+        file_path = os.path.join(output_dir, f"{chat_name}_history.pkl")
+
+        try:
+            with open(file_path, "wb") as file:
+                pickle.dump(self.chat_history, file)
+            print(f"Chat history saved successfully to {file_path}.")
+        except Exception as e:
+            print(f"Error saving chat history: {e}")
+
+    def load_chat_history(self, file_path: str):
+        """
+        Load chat history from a pickle file located at the given file path.
+
+        Args:
+            file_path (str): Full path to the pickle file containing the chat history.
+        """
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, "rb") as file:
+                    self.chat_history = pickle.load(file)
+                print(f"Chat history loaded successfully from {file_path}.")
+            else:
+                print(f"No chat history found at {file_path}.")
+                self.chat_history = []  # Reset or initialize chat history
+        except Exception as e:
+            print(f"Error loading chat history: {e}")
+            self.chat_history = (
+                []
+            )  # Reset or initialize chat history in case of an error
 
     def chat(self, query: str):
         """
