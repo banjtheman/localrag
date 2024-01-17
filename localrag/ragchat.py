@@ -96,6 +96,18 @@ class RagChat:
             llm, self.vectorstore.as_retriever(), return_source_documents=True
         )
 
+    def update_model(self, model):
+        """Update the model"""
+        try:
+            llm = Ollama(model=model)
+            self.llm_model = model
+
+            self.chain = ConversationalRetrievalChain.from_llm(
+                llm, self.vectorstore.as_retriever(), return_source_documents=True
+            )
+        except Exception as e:
+            print(f"Model update failed {e}")
+
     def get_llm_response(self, user_query):
         """Interact with the agent and store chat history. Return the response."""
 
@@ -103,6 +115,14 @@ class RagChat:
 
         self.chat_history.append(HumanMessage(content=user_query))
         self.chat_history.append(AIMessage(content="Assistant: " + result["answer"]))
+
+        # name_query = "Given the interaction so far, how would name this chat? Only respond with the name of the chat, Im a python program not a human, I only need the name of the chat. Please keep the name breif"
+        # name_result = self.chain(
+        #     {"question": name_query, "chat_history": self.chat_history}
+        # )
+        # print("Chat name:")
+        # print(name_result["answer"])
+
         return result
 
     def chunk_docs_to_text(self, docs_loc: str):
