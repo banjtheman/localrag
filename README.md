@@ -8,7 +8,7 @@ It allows for quick, local, and easy interactions with text data, extracting and
 
 - **Local Processing**: Runs entirely on your local machine - no need to send data externally.
 - **Customizable**: Easy to set up with default models or specify your own.
-- **Versatile**: Use it for a variety of applications, from automated Q&A systems to data mining.
+- **Versatile**: Use it for a variety of applications, from automated Q&A systems to data mining. You add files, folders or websites to the index!
 
 ## Prerequisites
 
@@ -44,13 +44,14 @@ I have a dog
 import localrag
 # can set device to mps or cuda:0 e.g device="mps"
 # can set index location e.g index_location="my_index_loc"
+# Can set system prompt with system_prompt=
 my_local_rag = localrag.init()
 # Add docs
 my_local_rag.add_to_index("./docs")
 # Chat with docs
 response = my_local_rag.chat("What type of pet do I have?")
 print(response.answer)
-print(response.source_documents)
+print(response.context)
 # Based on the context you provided, I can determine that you have a dog. Therefore, the type of pet you have is "dog."
 # [Document(page_content='I have a dog', metadata={'source': 'docs/test.txt'})]
 ```

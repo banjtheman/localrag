@@ -1,13 +1,20 @@
 import os
 import pickle
 
-from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.schema.messages import AIMessage, HumanMessage
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import DirectoryLoader, UnstructuredFileLoader
+from langchain_community.document_loaders import (
+    DirectoryLoader,
+    UnstructuredFileLoader,
+    WebBaseLoader,
+)
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from .chatresponse import ChatResponse
 
@@ -19,6 +26,7 @@ class RagChat:
         embedding_model="BAAI/bge-small-en",
         device="cpu",
         index_location="localrag_index",
+        system_prompt=None,
     ):
         """
         Initialize a new RagChat instance with specified or default configurations.
@@ -33,7 +41,8 @@ class RagChat:
         self.embeddings = None
         self.chain = None
         self.vectorstore = None
-        self.setup(llm_model, embedding_model, device, index_location)
+        self.llm = None
+        self.setup(llm_model, embedding_model, device, index_location, system_prompt)
 
     def setup(
         self,
@@ -41,6 +50,7 @@ class RagChat:
         embedding_model: str,
         device: str,
         index_location: str,
+        system_prompt: str,
     ):
         """
         Setup the model and other configurations necessary for the RagChat system.
@@ -50,15 +60,18 @@ class RagChat:
             embedding_model (str): The name of the embedding model to use.
             device (str): The device to run the models on.
             index_location (str): The location of the pre-built index for document retrieval.
+            system_prompt (str): A system prompt for the model
         """
         # Setup the model and other configurations
         self.llm_model = llm_model
         self.embedding_model = embedding_model
         self.device = device
         self.index_location = index_location
+        self.system_prompt = system_prompt
 
         self.setup_embeddings()
         self.setup_vectorstore()
+        self.setup_llm()
 
     def setup_embeddings(self):
         """
@@ -89,29 +102,75 @@ class RagChat:
             self.vectorstore.save_local(self.index_location)
 
     def setup_llm(self):
-        """Create a new LLM chain with the vectorstore"""
-        llm = Ollama(model=self.llm_model)
+        """Create a new LLM"""
+        self.llm = Ollama(model=self.llm_model)
 
-        self.chain = ConversationalRetrievalChain.from_llm(
-            llm, self.vectorstore.as_retriever(), return_source_documents=True
+    def update_system_prompt(self, system_prompt):
+        self.system_prompt = system_prompt
+
+        # Update chain with new prompt
+        self.setup_chain()
+
+    def setup_chain(self):
+        """Create a new LLM chain with the vectorstore"""
+
+        if self.llm is None:
+            self.setup_llm()
+
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("user", "{input}"),
+                (
+                    "user",
+                    "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation",
+                ),
+            ]
         )
+
+        retriever = self.vectorstore.as_retriever()
+
+        retriever_chain = create_history_aware_retriever(self.llm, retriever, prompt)
+
+        if self.system_prompt:
+            prompt_string = (
+                self.system_prompt
+                + " Answer the user's questions based on the below context:\n\n{context}"
+            )
+        else:
+            prompt_string = (
+                "Answer the user's questions based on the below context:\n\n{context}"
+            )
+
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    prompt_string,
+                ),
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("user", "{input}"),
+            ]
+        )
+        document_chain = create_stuff_documents_chain(self.llm, prompt)
+
+        self.chain = create_retrieval_chain(retriever_chain, document_chain)
 
     def update_model(self, model):
         """Update the model"""
         try:
-            llm = Ollama(model=model)
             self.llm_model = model
+            self.llm = Ollama(model=model)
 
-            self.chain = ConversationalRetrievalChain.from_llm(
-                llm, self.vectorstore.as_retriever(), return_source_documents=True
-            )
         except Exception as e:
             print(f"Model update failed {e}")
 
     def get_llm_response(self, user_query):
         """Interact with the agent and store chat history. Return the response."""
 
-        result = self.chain({"question": user_query, "chat_history": self.chat_history})
+        result = self.chain.invoke(
+            {"input": user_query, "chat_history": self.chat_history}
+        )
 
         self.chat_history.append(HumanMessage(content=user_query))
         self.chat_history.append(AIMessage(content="Assistant: " + result["answer"]))
@@ -147,6 +206,17 @@ class RagChat:
 
         return texts
 
+    def chunk_website_to_text(self, website_loc: str):
+        loader = WebBaseLoader(website_loc)
+        docs = loader.load()
+
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000, chunk_overlap=20
+        )
+        texts = text_splitter.split_documents(docs)
+
+        return texts
+
     def embed_text(self, texts, save_loc: str):
         docsearch = FAISS.from_documents(texts, self.embeddings)
 
@@ -160,13 +230,19 @@ class RagChat:
         Args:
             doc (str): The path to the directory or file containing the documents to index.
         """
-
-        if os.path.isdir(doc):
-            texts = self.chunk_docs_to_text(doc)
-            self.embed_text(texts, self.index_location)
-        elif os.path.isfile(doc):
-            texts = self.chunk_doc_to_text(doc)
-            self.embed_text(texts, self.index_location)
+        try:
+            if os.path.isdir(doc):
+                texts = self.chunk_docs_to_text(doc)
+                self.embed_text(texts, self.index_location)
+            elif os.path.isfile(doc):
+                texts = self.chunk_doc_to_text(doc)
+                self.embed_text(texts, self.index_location)
+            else:
+                # website?
+                texts = self.chunk_website_to_text(doc)
+                self.embed_text(texts, self.index_location)
+        except Exception as e:
+            print(f"Failed... {e}")
 
     def clear_chat_history(self):
         """
@@ -226,7 +302,7 @@ class RagChat:
             ChatResponse: An object containing the response details, including the answer, question, and source documents.
         """
         if self.chain is None:
-            self.setup_llm()
+            self.setup_chain()
 
         response = self.get_llm_response(query)
         return ChatResponse(response)

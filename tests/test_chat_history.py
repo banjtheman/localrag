@@ -7,7 +7,7 @@ my_local_rag = localrag.init()
 my_local_rag.add_to_index("pizza.txt")
 response = my_local_rag.chat("What type of food do I like?")
 print(response.answer)
-print(response.source_documents)
+print(response.context)
 
 # Save Chat history
 my_local_rag.save_chat_history("chat_history_test", "test")
@@ -21,4 +21,4 @@ my_local_rag.load_chat_history("chat_history_test/test_history.pkl")
 # Ask a follow up question
 response = my_local_rag.chat("What are some popular toppings?")
 print(response.answer)
-print(response.source_documents)
+print(response.context)
