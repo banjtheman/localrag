@@ -15,6 +15,7 @@ from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
 
 from .chatresponse import ChatResponse
 
@@ -104,6 +105,9 @@ class RagChat:
     def setup_llm(self):
         """Create a new LLM"""
         self.llm = Ollama(model=self.llm_model)
+
+    def setup_openai_llm(self, model: str = "gpt-3.5-turbo", temp: int = 0):
+        self.llm = ChatOpenAI(model=model, temperature=temp)
 
     def update_system_prompt(self, system_prompt):
         self.system_prompt = system_prompt

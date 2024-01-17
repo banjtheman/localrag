@@ -2,12 +2,15 @@ from setuptools import find_packages, setup
 
 setup(
     name="localrag",
-    version="0.1.4",
+    version="0.1.41",
     packages=find_packages(),
     install_requires=[
         "unstructured",
         "unstructured[all-docs]",
         "langchain",
+        "langchain-openai",
+        "langchain-community",
+        "langchain-core",
         "faiss-cpu",
         "transformers",
         "sentence_transformers",
