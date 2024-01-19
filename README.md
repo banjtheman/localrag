@@ -46,6 +46,7 @@ import localrag
 # can set index location e.g index_location="my_index_loc"
 # Can set system prompt with system_prompt=
 my_local_rag = localrag.init()
+# can change the URL of the ollama server with my_local_rag.llm.base_url = "http://ollama:11434"
 # Add docs
 my_local_rag.add_to_index("./docs")
 # Chat with docs
