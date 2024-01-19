@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="localrag",
-    version="0.1.41",
+    version="0.1.42",
     packages=find_packages(),
     install_requires=[
         "unstructured",

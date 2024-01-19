@@ -18,14 +18,15 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 
 from .chatresponse import ChatResponse
+from .utils import get_device_type
 
 
 class RagChat:
     def __init__(
         self,
         llm_model="llama2",
-        embedding_model="BAAI/bge-small-en",
-        device="cpu",
+        embedding_model="BAAI/bge-small-en-v1.5",
+        device=get_device_type(),
         index_location="localrag_index",
         system_prompt=None,
     ):
@@ -177,14 +178,7 @@ class RagChat:
         )
 
         self.chat_history.append(HumanMessage(content=user_query))
-        self.chat_history.append(AIMessage(content="Assistant: " + result["answer"]))
-
-        # name_query = "Given the interaction so far, how would name this chat? Only respond with the name of the chat, Im a python program not a human, I only need the name of the chat. Please keep the name breif"
-        # name_result = self.chain(
-        #     {"question": name_query, "chat_history": self.chat_history}
-        # )
-        # print("Chat name:")
-        # print(name_result["answer"])
+        self.chat_history.append(AIMessage(content=result["answer"]))
 
         return result
 

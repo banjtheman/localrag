@@ -1,6 +1,7 @@
 # Added
 notes.txt 
 tests/localrag_index/*
+tests/chat_history_test/test_history.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

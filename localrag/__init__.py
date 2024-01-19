@@ -1,11 +1,12 @@
 from .chatresponse import ChatResponse
 from .ragchat import RagChat
+from .utils import get_device_type
 
 
 def init(
     llm_model="llama2",
-    embedding_model="BAAI/bge-small-en",
-    device="cpu",
+    embedding_model="BAAI/bge-small-en-v1.5",
+    device=get_device_type(),
     index_location="localrag_index",
     system_prompt=None,
 ):
