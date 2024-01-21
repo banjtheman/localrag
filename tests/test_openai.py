@@ -1,9 +1,12 @@
+from langchain_openai import ChatOpenAI
+
 import localrag
 
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
 # Set up with all the necessary configurations
-my_local_rag = localrag.init()
-# Connect to openai
-my_local_rag.setup_openai_llm()
+my_local_rag = localrag.custom_init(llm=llm)
+
 # Add a file
 my_local_rag.add_to_index("pizza.txt")
 response = my_local_rag.chat("What type of food do I like?")

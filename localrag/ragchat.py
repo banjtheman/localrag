@@ -15,7 +15,6 @@ from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
 
 from .chatresponse import ChatResponse
 from .utils import get_device_type
@@ -29,6 +28,12 @@ class RagChat:
         device=get_device_type(),
         index_location="localrag_index",
         system_prompt=None,
+        has_custom_llm=False,
+        has_custom_embeds=False,
+        has_custom_vector=False,
+        custom_embed_text_func=None,
+        chunk_size: int = 1000,
+        chunk_overlap: int = 20,
     ):
         """
         Initialize a new RagChat instance with specified or default configurations.
@@ -38,13 +43,30 @@ class RagChat:
             embedding_model (str): The name of the embedding model to use. Defaults to 'BAAI/bge-small-en'.
             device (str): The device to run the models on. Defaults to 'cpu'.
             index_location (str): The location of the pre-built index for document retrieval. Defaults to 'localrag_index'.
+            has_custom_llm (bool) = Flag to check if using custom LLM. Defaults to False,
+            has_custom_embeds (bool) = Flag to check if using custom embedding model. Defaults to False,
+            has_custom_vector (bool)=Flag to check if using custom vector database. Defaults to False,
+            custom_embed_text_func: Custom function to add docs to a custom vector database.
         """
         self.chat_history = []
         self.embeddings = None
         self.chain = None
         self.vectorstore = None
         self.llm = None
-        self.setup(llm_model, embedding_model, device, index_location, system_prompt)
+        self.custom_embed_text_func = custom_embed_text_func
+        self.has_custom_llm = has_custom_llm
+        self.has_custom_embeds = has_custom_embeds
+        self.has_custom_vector = has_custom_vector
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+
+        self.setup(
+            llm_model,
+            embedding_model,
+            device,
+            index_location,
+            system_prompt,
+        )
 
     def setup(
         self,
@@ -71,9 +93,12 @@ class RagChat:
         self.index_location = index_location
         self.system_prompt = system_prompt
 
-        self.setup_embeddings()
-        self.setup_vectorstore()
-        self.setup_llm()
+        if not self.has_custom_embeds:
+            self.setup_embeddings()
+        if not self.has_custom_vector:
+            self.setup_vectorstore()
+        if not self.has_custom_llm:
+            self.setup_llm()
 
     def setup_embeddings(self):
         """
@@ -106,9 +131,6 @@ class RagChat:
     def setup_llm(self):
         """Create a new LLM"""
         self.llm = Ollama(model=self.llm_model)
-
-    def setup_openai_llm(self, model: str = "gpt-3.5-turbo", temp: int = 0):
-        self.llm = ChatOpenAI(model=model, temperature=temp)
 
     def update_system_prompt(self, system_prompt):
         self.system_prompt = system_prompt
@@ -187,7 +209,7 @@ class RagChat:
         docs = loader.load()
 
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=20
+            chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap
         )
         texts = text_splitter.split_documents(docs)
 
@@ -198,7 +220,7 @@ class RagChat:
         docs = loader.load()
 
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=20
+            chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap
         )
         texts = text_splitter.split_documents(docs)
 
@@ -209,13 +231,13 @@ class RagChat:
         docs = loader.load()
 
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=20
+            chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap
         )
         texts = text_splitter.split_documents(docs)
 
         return texts
 
-    def embed_text(self, texts, save_loc: str):
+    def embed_text(self, texts):
         docsearch = FAISS.from_documents(texts, self.embeddings)
 
         # Update vectorstore
@@ -231,14 +253,24 @@ class RagChat:
         try:
             if os.path.isdir(doc):
                 texts = self.chunk_docs_to_text(doc)
-                self.embed_text(texts, self.index_location)
+
+                if self.custom_embed_text_func:
+                    self.custom_embed_text_func(self.vectorstore, texts)
+                else:
+                    self.embed_text(texts)
             elif os.path.isfile(doc):
                 texts = self.chunk_doc_to_text(doc)
-                self.embed_text(texts, self.index_location)
+                if self.custom_embed_text_func:
+                    self.custom_embed_text_func(self.vectorstore, texts)
+                else:
+                    self.embed_text(texts)
             else:
                 # website?
                 texts = self.chunk_website_to_text(doc)
-                self.embed_text(texts, self.index_location)
+                if self.custom_embed_text_func:
+                    self.custom_embed_text_func(self.vectorstore, texts)
+                else:
+                    self.embed_text(texts)
         except Exception as e:
             print(f"Failed... {e}")
 
