@@ -13,6 +13,7 @@ setup(
         "faiss-cpu",
         "transformers",
         "sentence_transformers",
+        "security~=1.2.0",
     ],
     # PyPI metadata
     author="Banjo Obayomi",

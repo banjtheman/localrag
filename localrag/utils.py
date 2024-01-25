@@ -1,11 +1,11 @@
 import platform
 import subprocess
+from security import safe_command
 
 
 def check_cuda():
     try:
-        subprocess.run(
-            ["nvidia-smi"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        safe_command.run(subprocess.run, ["nvidia-smi"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
         return True
     except FileNotFoundError:
