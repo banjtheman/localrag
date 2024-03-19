@@ -117,7 +117,11 @@ class RagChat:
     def setup_vectorstore(self):
         """Load a vectorstore if it exists"""
         if os.path.exists(self.index_location):
-            self.vectorstore = FAISS.load_local(self.index_location, self.embeddings)
+            self.vectorstore = FAISS.load_local(
+                self.index_location,
+                self.embeddings,
+                allow_dangerous_deserialization=True,
+            )
 
     def update_vectorstore(self, new_db):
         """Update or create a new vector store"""
@@ -243,7 +247,7 @@ class RagChat:
         # Update vectorstore
         self.update_vectorstore(docsearch)
 
-    def add_to_index(self, doc: str):
+    def add_to_index(self, doc: str, **kwargs):
         """
         Add item to the vector index
 
@@ -255,20 +259,20 @@ class RagChat:
                 texts = self.chunk_docs_to_text(doc)
 
                 if self.custom_embed_text_func:
-                    self.custom_embed_text_func(self.vectorstore, texts)
+                    self.custom_embed_text_func(self.vectorstore, texts, **kwargs)
                 else:
                     self.embed_text(texts)
             elif os.path.isfile(doc):
                 texts = self.chunk_doc_to_text(doc)
                 if self.custom_embed_text_func:
-                    self.custom_embed_text_func(self.vectorstore, texts)
+                    self.custom_embed_text_func(self.vectorstore, texts, **kwargs)
                 else:
                     self.embed_text(texts)
             else:
                 # website?
                 texts = self.chunk_website_to_text(doc)
                 if self.custom_embed_text_func:
-                    self.custom_embed_text_func(self.vectorstore, texts)
+                    self.custom_embed_text_func(self.vectorstore, texts, **kwargs)
                 else:
                     self.embed_text(texts)
         except Exception as e:
