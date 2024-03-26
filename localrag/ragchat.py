@@ -153,7 +153,7 @@ class RagChat:
                 MessagesPlaceholder(variable_name="chat_history"),
                 ("user", "{input}"),
                 (
-                    "user",
+                    "assistant",
                     "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation",
                 ),
             ]
